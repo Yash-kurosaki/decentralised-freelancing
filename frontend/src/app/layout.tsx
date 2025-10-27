@@ -1,6 +1,12 @@
 import type { Metadata } from 'next'
 import { Inter } from 'next/font/google'
 import './globals.css'
+import { Bungee } from 'next/font/google'
+const bungee = Bungee({
+  subsets: ['latin'],
+  weight: ['400'],
+  display: 'swap',
+})
 import { WalletContextProvider } from '@/components/WalletProvider'
 
 const inter = Inter({ subsets: ['latin'] })
@@ -17,7 +23,7 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
-      <body className={inter.className}>
+      <body className={bungee.className}>
         <WalletContextProvider>
           {children}
         </WalletContextProvider>
@@ -25,3 +31,4 @@ export default function RootLayout({
     </html>
   )
 }
+

@@ -5,23 +5,35 @@ import { useConnection } from '@solana/wallet-adapter-react';
 import { useEffect, useState } from 'react';
 import { LAMPORTS_PER_SOL } from '@solana/web3.js';
 import { useRouter } from 'next/navigation';
+import { CustomWalletButton } from '@/components/CustomWalletButton';
+import { Zap, Wallet, Star, CheckCircle, Github, Briefcase, Upload, BarChart3, TrendingUp, Award } from 'lucide-react';
 
 export default function Dashboard() {
   const { publicKey, connected } = useWallet();
   const { connection } = useConnection();
   const router = useRouter();
-  
+
   const [balance, setBalance] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
   const [username, setUsername] = useState('');
   const [bio, setBio] = useState('');
   const [isEditing, setIsEditing] = useState(false);
+  const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
 
   useEffect(() => {
     if (!connected) {
       router.push('/');
     }
   }, [connected, router]);
+
+  // Mouse tracking
+  useEffect(() => {
+    const handleMouseMove = (e: MouseEvent) => {
+      setMousePosition({ x: e.clientX, y: e.clientY });
+    };
+    window.addEventListener('mousemove', handleMouseMove);
+    return () => window.removeEventListener('mousemove', handleMouseMove);
+  }, []);
 
   useEffect(() => {
     const getBalance = async () => {
@@ -44,7 +56,6 @@ export default function Dashboard() {
     localStorage.setItem('username', username);
     localStorage.setItem('bio', bio);
     setIsEditing(false);
-    alert('Profile saved! (Using localStorage for now)');
   };
 
   useEffect(() => {
@@ -59,69 +70,134 @@ export default function Dashboard() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-purple-900 via-purple-800 to-indigo-900">
+    <div className="min-h-screen bg-gradient-to-br from-gray-950 via-gray-900 to-black text-white overflow-hidden relative">
+
+      {/* Animated Background */}
+      <div className="absolute inset-0 overflow-hidden pointer-events-none">
+        <div
+          className="absolute w-[500px] h-[500px] bg-gradient-to-r from-gray-600/20 to-gray-800/20 rounded-full blur-3xl"
+          style={{
+            top: '10%',
+            left: '20%',
+            animation: 'float 20s ease-in-out infinite'
+          }}
+        />
+        <div
+          className="absolute w-[600px] h-[600px] bg-gradient-to-r from-gray-700/15 to-gray-500/15 rounded-full blur-3xl"
+          style={{
+            bottom: '10%',
+            right: '10%',
+            animation: 'float 25s ease-in-out infinite reverse'
+          }}
+        />
+        <div
+          className="absolute w-[300px] h-[300px] bg-gradient-to-r from-gray-600/20 to-gray-400/20 rounded-full blur-3xl"
+          style={{
+            top: '50%',
+            left: '50%',
+            transform: `translate(${mousePosition.x * 0.015}px, ${mousePosition.y * 0.015}px)`,
+            transition: 'transform 0.3s ease-out'
+          }}
+        />
+      </div>
+
+      {/* Grid Pattern */}
+      <div
+        className="absolute inset-0 opacity-10"
+        style={{
+          backgroundImage: `linear-gradient(rgba(156, 163, 175, 0.1) 1px, transparent 1px),
+                           linear-gradient(90deg, rgba(156, 163, 175, 0.1) 1px, transparent 1px)`,
+          backgroundSize: '50px 50px'
+        }}
+      />
+
       {/* Header */}
-      <header className="bg-black/20 backdrop-blur-md border-b border-white/10">
+      <header className="relative z-10 backdrop-blur-xl bg-black/30 border-b border-gray-800/50">
         <div className="container mx-auto px-6 py-4 flex justify-between items-center">
-          <h1 
-            className="text-2xl font-bold text-white cursor-pointer hover:text-purple-300 transition-colors"
+          <div
+            className="flex items-center gap-3 cursor-pointer group"
             onClick={() => router.push('/')}
           >
-            RepChain
-          </h1>
-          <div className="flex items-center gap-4">
-            <span className="text-purple-200 text-sm font-mono">
-              {publicKey?.toBase58().slice(0, 4)}...{publicKey?.toBase58().slice(-4)}
-            </span>
+            <div className="relative w-12 h-12 flex items-center justify-center group-hover:scale-110 transition-transform">
+              {/* Outer glowing ring */}
+              <div className="absolute inset-0 rounded-full bg-gradient-to-br from-gray-300/60 via-gray-500/50 to-gray-700/60 blur-lg opacity-90 shadow-[0_0_15px_rgba(180,180,180,0.4)]" />
+
+              {/* Rotating gradient ring */}
+              <div className="absolute inset-[2px] rounded-full border-[2px] border-transparent bg-gradient-to-r from-gray-400 via-gray-200 to-gray-500 animate-spin-slow" />
+
+              {/* Inner rotating ring (counter rotation) */}
+              <div className="absolute inset-[6px] rounded-full border-[2px] border-transparent bg-gradient-to-r from-gray-700 via-gray-600 to-gray-800 animate-spin-slower" />
+
+              {/* Center hexagon core */}
+              <div className="relative w-5 h-5 rotate-45 bg-gradient-to-br from-gray-300 via-gray-500 to-gray-700 shadow-inner shadow-gray-800/70 border border-gray-300" />
+            </div>
+            <h1 className="text-2xl font-bold bg-gradient-to-r from-gray-200 to-gray-400 bg-clip-text text-transparent">
+              RepChain
+            </h1>
           </div>
+          <CustomWalletButton />
         </div>
       </header>
 
-      <main className="container mx-auto px-6 py-12">
-        <div className="max-w-4xl mx-auto">
-          
-          {/* Profile Card - Clean Glass */}
-          <div className="bg-white/10 backdrop-blur-xl rounded-2xl p-8 mb-8 border border-white/20 shadow-2xl">
-            <div className="flex items-start justify-between mb-6">
+      <main className="relative z-10 container mx-auto px-6 py-12">
+        <div className="max-w-6xl mx-auto">
+
+          {/* Welcome Section with Animation */}
+          <div className="mb-12 animate-fade-in">
+            <h2 className="text-4xl font-black bg-gradient-to-r from-gray-200 to-gray-400 bg-clip-text text-transparent mb-2">
+              Welcome Back
+            </h2>
+            <p className="text-gray-500">Manage your on-chain reputation</p>
+          </div>
+
+          {/* Profile Card */}
+          <div className="group bg-gradient-to-br from-gray-800/60 to-gray-900/60 backdrop-blur-2xl rounded-3xl p-8 mb-8 border border-gray-700/50 hover:border-gray-600/50 transition-all duration-500 shadow-2xl">
+            <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-6">
+
               <div className="flex items-center gap-6">
-                {/* Avatar */}
-                <div className="w-24 h-24 bg-white/20 backdrop-blur-sm rounded-full flex items-center justify-center text-4xl border border-white/30">
-                  👤
+                {/* Avatar with Glow */}
+                <div className="relative">
+                  <div className="absolute inset-0 bg-gradient-to-r from-gray-500/50 to-gray-600/50 rounded-full blur-xl opacity-0 group-hover:opacity-100 transition-opacity" />
+                  <div className="relative w-24 h-24 bg-gradient-to-br from-gray-700 to-gray-800 rounded-full flex items-center justify-center text-4xl border-2 border-gray-600 shadow-xl">
+                    👤
+                  </div>
                 </div>
-                
+
                 {/* Info */}
-                <div>
+                <div className="flex-1">
                   {isEditing ? (
                     <input
                       type="text"
                       value={username}
                       onChange={(e) => setUsername(e.target.value)}
                       placeholder="Enter username"
-                      className="bg-white/10 text-white text-2xl font-bold px-4 py-2 rounded-lg mb-2 border border-white/30 focus:border-white/50 focus:outline-none backdrop-blur-sm"
+                      className="bg-gray-900/50 text-white text-2xl font-bold px-4 py-2 rounded-lg mb-2 border border-gray-700 focus:border-gray-500 focus:outline-none backdrop-blur-sm w-full"
                     />
                   ) : (
-                    <h2 className="text-3xl font-bold text-white mb-2">
+                    <h2 className="text-3xl font-black text-gray-200 mb-2">
                       {username || 'Anonymous User'}
                     </h2>
                   )}
-                  <p className="text-purple-200 font-mono text-sm">
-                    {publicKey?.toBase58()}
+                  <p className="text-gray-500 font-mono text-sm flex items-center gap-2">
+                    <Wallet className="w-4 h-4" />
+                    {publicKey?.toBase58().slice(0, 8)}...{publicKey?.toBase58().slice(-8)}
                   </p>
                 </div>
               </div>
 
               <button
                 onClick={() => isEditing ? handleSaveProfile() : setIsEditing(true)}
-                className="bg-white/20 hover:bg-white/30 backdrop-blur-sm text-white font-semibold px-6 py-2 rounded-lg transition-all border border-white/30"
+                className="bg-gray-800/80 hover:bg-gray-700/80 backdrop-blur-sm text-white font-semibold px-6 py-2.5 rounded-lg transition-all border border-gray-700 hover:border-gray-600 hover:scale-105 transform"
               >
                 {isEditing ? 'Save Profile' : 'Edit Profile'}
               </button>
             </div>
 
             {/* Bio */}
-            <div className="mt-6">
-              <label className="text-purple-200 text-sm font-semibold mb-2 block">
-                Bio
+            <div className="mt-8">
+              <label className="text-gray-400 text-sm font-semibold mb-3 block flex items-center gap-2">
+                <span>Bio</span>
+                {!isEditing && bio && <Award className="w-4 h-4 text-gray-600" />}
               </label>
               {isEditing ? (
                 <textarea
@@ -129,84 +205,163 @@ export default function Dashboard() {
                   onChange={(e) => setBio(e.target.value)}
                   placeholder="Tell us about yourself..."
                   rows={4}
-                  className="w-full bg-white/10 text-white px-4 py-3 rounded-lg border border-white/30 focus:border-white/50 focus:outline-none resize-none backdrop-blur-sm"
+                  className="w-full bg-gray-900/50 text-white px-4 py-3 rounded-lg border border-gray-700 focus:border-gray-500 focus:outline-none resize-none backdrop-blur-sm"
                 />
               ) : (
-                <p className="text-white/80">
+                <p className="text-gray-300 leading-relaxed">
                   {bio || 'No bio added yet. Click Edit Profile to add one!'}
                 </p>
               )}
             </div>
           </div>
 
-          {/* Stats Grid - Uniform Glass */}
+          {/* Stats Grid with Stagger Animation */}
           <div className="grid md:grid-cols-3 gap-6 mb-8">
-            {/* Balance */}
-            <div className="bg-white/10 backdrop-blur-xl rounded-xl p-6 border border-white/20 shadow-lg hover:bg-white/15 transition-all">
-              <div className="flex items-center gap-3 mb-2">
-                <span className="text-3xl">💰</span>
-                <h3 className="text-white/70 text-sm font-semibold">Balance</h3>
+
+            {/* Balance Card */}
+            <div
+              className="group bg-gradient-to-br from-gray-800/60 to-gray-900/60 backdrop-blur-2xl rounded-2xl p-6 border border-gray-700/50 hover:border-gray-600/50 transition-all duration-500 shadow-xl hover:scale-105 transform"
+              style={{ animationDelay: '0.1s' }}
+            >
+              <div className="flex items-center justify-between mb-4">
+                <div className="w-12 h-12 bg-gray-800 rounded-xl flex items-center justify-center border border-gray-700 group-hover:border-gray-600 transition-colors">
+                  <Wallet className="w-6 h-6 text-gray-400 group-hover:text-gray-300" />
+                </div>
+                <TrendingUp className="w-5 h-5 text-green-500 opacity-0 group-hover:opacity-100 transition-opacity" />
               </div>
-              <p className="text-3xl font-bold text-white">
-                {loading ? '...' : balance?.toFixed(4)} SOL
+              <h3 className="text-gray-400 text-sm font-semibold mb-2">Balance</h3>
+              <p className="text-3xl font-black text-gray-200">
+                {loading ? '...' : balance?.toFixed(4)}
               </p>
-              <p className="text-purple-200 text-xs mt-2">Devnet Balance</p>
+              <p className="text-gray-600 text-xs mt-2 flex items-center gap-1">
+                <span className="w-1.5 h-1.5 bg-gray-600 rounded-full" />
+                SOL Devnet
+              </p>
             </div>
 
-            {/* Reputation Score */}
-            <div className="bg-white/10 backdrop-blur-xl rounded-xl p-6 border border-white/20 shadow-lg hover:bg-white/15 transition-all">
-              <div className="flex items-center gap-3 mb-2">
-                <span className="text-3xl">⭐</span>
-                <h3 className="text-white/70 text-sm font-semibold">Reputation</h3>
+            {/* Reputation Card */}
+            <div
+              className="group bg-gradient-to-br from-gray-800/60 to-gray-900/60 backdrop-blur-2xl rounded-2xl p-6 border border-gray-700/50 hover:border-gray-600/50 transition-all duration-500 shadow-xl hover:scale-105 transform"
+              style={{ animationDelay: '0.2s' }}
+            >
+              <div className="flex items-center justify-between mb-4">
+                <div className="w-12 h-12 bg-gray-800 rounded-xl flex items-center justify-center border border-gray-700 group-hover:border-gray-600 transition-colors">
+                  <Star className="w-6 h-6 text-gray-400 group-hover:text-gray-300" />
+                </div>
+                <div className="text-xs bg-gray-800 px-2 py-1 rounded text-gray-500">+0</div>
               </div>
-              <p className="text-3xl font-bold text-white">0</p>
-              <p className="text-purple-200 text-xs mt-2">Connect GitHub to start</p>
+              <h3 className="text-gray-400 text-sm font-semibold mb-2">Reputation</h3>
+              <p className="text-3xl font-black text-gray-200">0</p>
+              <p className="text-gray-600 text-xs mt-2 flex items-center gap-1">
+                <span className="w-1.5 h-1.5 bg-gray-600 rounded-full" />
+                Connect GitHub to start
+              </p>
             </div>
 
-            {/* Jobs Completed */}
-            <div className="bg-white/10 backdrop-blur-xl rounded-xl p-6 border border-white/20 shadow-lg hover:bg-white/15 transition-all">
-              <div className="flex items-center gap-3 mb-2">
-                <span className="text-3xl">✅</span>
-                <h3 className="text-white/70 text-sm font-semibold">Jobs Done</h3>
+            {/* Jobs Card */}
+            <div
+              className="group bg-gradient-to-br from-gray-800/60 to-gray-900/60 backdrop-blur-2xl rounded-2xl p-6 border border-gray-700/50 hover:border-gray-600/50 transition-all duration-500 shadow-xl hover:scale-105 transform"
+              style={{ animationDelay: '0.3s' }}
+            >
+              <div className="flex items-center justify-between mb-4">
+                <div className="w-12 h-12 bg-gray-800 rounded-xl flex items-center justify-center border border-gray-700 group-hover:border-gray-600 transition-colors">
+                  <CheckCircle className="w-6 h-6 text-gray-400 group-hover:text-gray-300" />
+                </div>
+                <div className="text-xs bg-green-900/30 text-green-500 px-2 py-1 rounded">Active</div>
               </div>
-              <p className="text-3xl font-bold text-white">0</p>
-              <p className="text-purple-200 text-xs mt-2">Complete jobs to build reputation</p>
+              <h3 className="text-gray-400 text-sm font-semibold mb-2">Jobs Done</h3>
+              <p className="text-3xl font-black text-gray-200">0</p>
+              <p className="text-gray-600 text-xs mt-2 flex items-center gap-1">
+                <span className="w-1.5 h-1.5 bg-gray-600 rounded-full" />
+                Complete jobs to build rep
+              </p>
             </div>
           </div>
 
-          {/* Quick Actions - Transparent Glass */}
-          <div className="bg-white/10 backdrop-blur-xl rounded-2xl p-8 border border-white/20 shadow-2xl">
-            <h3 className="text-2xl font-bold text-white mb-6">Quick Actions</h3>
+          {/* Quick Actions */}
+          <div className="bg-gradient-to-br from-gray-800/40 to-gray-900/40 backdrop-blur-2xl rounded-3xl p-8 border border-gray-700/50 shadow-2xl">
+            <h3 className="text-2xl font-black text-gray-200 mb-6 flex items-center gap-2">
+              <Zap className="w-6 h-6 text-gray-400" />
+              Quick Actions
+            </h3>
+
             <div className="grid md:grid-cols-2 gap-4">
-              
-              <button className="bg-white/10 hover:bg-white/20 backdrop-blur-sm border border-white/30 text-white font-semibold py-6 px-6 rounded-xl transition-all transform hover:scale-105 text-left">
-                <div className="text-3xl mb-3">🔗</div>
-                <div className="font-bold text-lg">Connect GitHub</div>
-                <div className="text-sm text-purple-200 mt-1">Import your dev work</div>
+
+              <button className="group relative bg-gray-800/60 hover:bg-gray-700/60 backdrop-blur-sm border border-gray-700/50 hover:border-gray-600/50 text-white font-semibold py-6 px-6 rounded-xl transition-all transform hover:scale-105 text-left overflow-hidden">
+                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-gray-600/10 to-transparent translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-1000" />
+                <div className="relative flex items-start gap-4">
+                  <div className="w-12 h-12 bg-gray-900 rounded-lg flex items-center justify-center border border-gray-800">
+                    <Github className="w-6 h-6 text-gray-400" />
+                  </div>
+                  <div className="flex-1">
+                    <div className="font-bold text-lg mb-1">Connect GitHub</div>
+                    <div className="text-sm text-gray-400">Import your dev work</div>
+                  </div>
+                </div>
               </button>
-              
-              <button className="bg-white/10 hover:bg-white/20 backdrop-blur-sm border border-white/30 text-white font-semibold py-6 px-6 rounded-xl transition-all transform hover:scale-105 text-left">
-                <div className="text-3xl mb-3">💼</div>
-                <div className="font-bold text-lg">Browse Jobs</div>
-                <div className="text-sm text-purple-200 mt-1">Find work opportunities</div>
+
+              <button className="group relative bg-gray-800/60 hover:bg-gray-700/60 backdrop-blur-sm border border-gray-700/50 hover:border-gray-600/50 text-white font-semibold py-6 px-6 rounded-xl transition-all transform hover:scale-105 text-left overflow-hidden">
+                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-gray-600/10 to-transparent translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-1000" />
+                <div className="relative flex items-start gap-4">
+                  <div className="w-12 h-12 bg-gray-900 rounded-lg flex items-center justify-center border border-gray-800">
+                    <Briefcase className="w-6 h-6 text-gray-400" />
+                  </div>
+                  <div className="flex-1">
+                    <div className="font-bold text-lg mb-1">Browse Jobs</div>
+                    <div className="text-sm text-gray-400">Find work opportunities</div>
+                  </div>
+                </div>
               </button>
-              
-              <button className="bg-white/10 hover:bg-white/20 backdrop-blur-sm border border-white/30 text-white font-semibold py-6 px-6 rounded-xl transition-all transform hover:scale-105 text-left">
-                <div className="text-3xl mb-3">📤</div>
-                <div className="font-bold text-lg">Upload Portfolio</div>
-                <div className="text-sm text-purple-200 mt-1">Showcase your work</div>
+
+              <button className="group relative bg-gray-800/60 hover:bg-gray-700/60 backdrop-blur-sm border border-gray-700/50 hover:border-gray-600/50 text-white font-semibold py-6 px-6 rounded-xl transition-all transform hover:scale-105 text-left overflow-hidden">
+                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-gray-600/10 to-transparent translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-1000" />
+                <div className="relative flex items-start gap-4">
+                  <div className="w-12 h-12 bg-gray-900 rounded-lg flex items-center justify-center border border-gray-800">
+                    <Upload className="w-6 h-6 text-gray-400" />
+                  </div>
+                  <div className="flex-1">
+                    <div className="font-bold text-lg mb-1">Upload Portfolio</div>
+                    <div className="text-sm text-gray-400">Showcase your work</div>
+                  </div>
+                </div>
               </button>
-              
-              <button className="bg-white/10 hover:bg-white/20 backdrop-blur-sm border border-white/30 text-white font-semibold py-6 px-6 rounded-xl transition-all transform hover:scale-105 text-left">
-                <div className="text-3xl mb-3">📊</div>
-                <div className="font-bold text-lg">View Analytics</div>
-                <div className="text-sm text-purple-200 mt-1">Track your progress</div>
+
+              <button className="group relative bg-gray-800/60 hover:bg-gray-700/60 backdrop-blur-sm border border-gray-700/50 hover:border-gray-600/50 text-white font-semibold py-6 px-6 rounded-xl transition-all transform hover:scale-105 text-left overflow-hidden">
+                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-gray-600/10 to-transparent translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-1000" />
+                <div className="relative flex items-start gap-4">
+                  <div className="w-12 h-12 bg-gray-900 rounded-lg flex items-center justify-center border border-gray-800">
+                    <BarChart3 className="w-6 h-6 text-gray-400" />
+                  </div>
+                  <div className="flex-1">
+                    <div className="font-bold text-lg mb-1">View Analytics</div>
+                    <div className="text-sm text-gray-400">Track your progress</div>
+                  </div>
+                </div>
               </button>
+
             </div>
           </div>
 
         </div>
       </main>
+
+      {/* CSS Animations */}
+      <style jsx>{`
+        @keyframes float {
+          0%, 100% { transform: translate(0, 0) scale(1); }
+          33% { transform: translate(30px, -30px) scale(1.1); }
+          66% { transform: translate(-20px, 20px) scale(0.9); }
+        }
+        
+        @keyframes fade-in {
+          from { opacity: 0; transform: translateY(20px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
+        
+        .animate-fade-in {
+          animation: fade-in 0.6s ease-out;
+        }
+      `}</style>
     </div>
   );
 }
