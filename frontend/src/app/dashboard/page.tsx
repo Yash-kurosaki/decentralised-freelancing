@@ -6,25 +6,56 @@ import { useEffect, useState } from 'react';
 import { LAMPORTS_PER_SOL } from '@solana/web3.js';
 import { useRouter } from 'next/navigation';
 import { CustomWalletButton } from '@/components/CustomWalletButton';
-import { Zap, Wallet, Star, CheckCircle, Github, Briefcase, Upload, BarChart3, TrendingUp, Award } from 'lucide-react';
+import { useAuth } from '@/hooks/useAuth';
+import { Zap, Wallet, Star, CheckCircle, Github, Briefcase, Upload, BarChart3, TrendingUp, Award, Loader2 } from 'lucide-react';
 
 export default function Dashboard() {
   const { publicKey, connected } = useWallet();
   const { connection } = useConnection();
   const router = useRouter();
-
+  const { user, loading: authLoading, authenticate, updateProfile, isAuthenticated } = useAuth();
+  
   const [balance, setBalance] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
   const [username, setUsername] = useState('');
   const [bio, setBio] = useState('');
+  const [email, setEmail] = useState('');
   const [isEditing, setIsEditing] = useState(false);
+  const [saving, setSaving] = useState(false);
   const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
+  const [authError, setAuthError] = useState<string | null>(null);
 
+  // Redirect if not connected
   useEffect(() => {
     if (!connected) {
       router.push('/');
     }
   }, [connected, router]);
+
+  // Authenticate user when wallet connects
+  useEffect(() => {
+    const doAuth = async () => {
+      if (connected && publicKey && !isAuthenticated && !authLoading) {
+        try {
+          await authenticate();
+        } catch (error) {
+          console.error('Authentication failed:', error);
+          setAuthError(error instanceof Error ? error.message : 'Authentication failed');
+        }
+      }
+    };
+
+    doAuth();
+  }, [connected, publicKey, isAuthenticated, authLoading, authenticate]);
+
+  // Load user data into form
+  useEffect(() => {
+    if (user) {
+      setUsername(user.username || '');
+      setBio(user.bio || '');
+      setEmail(user.email || '');
+    }
+  }, [user]);
 
   // Mouse tracking
   useEffect(() => {
@@ -35,6 +66,7 @@ export default function Dashboard() {
     return () => window.removeEventListener('mousemove', handleMouseMove);
   }, []);
 
+  // Fetch balance
   useEffect(() => {
     const getBalance = async () => {
       if (publicKey && connection) {
@@ -52,29 +84,49 @@ export default function Dashboard() {
     getBalance();
   }, [publicKey, connection]);
 
-  const handleSaveProfile = () => {
-    localStorage.setItem('username', username);
-    localStorage.setItem('bio', bio);
-    setIsEditing(false);
+  const handleSaveProfile = async () => {
+    try {
+      setSaving(true);
+      await updateProfile({
+        username: username || undefined,
+        bio: bio || undefined,
+        email: email || undefined,
+      });
+      setIsEditing(false);
+      alert('Profile saved successfully! ✅');
+    } catch (error) {
+      console.error('Save failed:', error);
+      alert('Failed to save profile: ' + (error instanceof Error ? error.message : 'Unknown error'));
+    } finally {
+      setSaving(false);
+    }
   };
-
-  useEffect(() => {
-    const savedUsername = localStorage.getItem('username');
-    const savedBio = localStorage.getItem('bio');
-    if (savedUsername) setUsername(savedUsername);
-    if (savedBio) setBio(savedBio);
-  }, []);
 
   if (!connected) {
     return null;
   }
 
+  // Show loading while authenticating
+  if (authLoading || !user) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-gray-950 via-gray-900 to-black flex items-center justify-center">
+        <div className="text-center">
+          <Loader2 className="w-12 h-12 text-gray-400 animate-spin mx-auto mb-4" />
+          <p className="text-gray-400">Authenticating with backend...</p>
+          {authError && (
+            <p className="text-red-400 mt-4 text-sm">{authError}</p>
+          )}
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-950 via-gray-900 to-black text-white overflow-hidden relative">
-
+      
       {/* Animated Background */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        <div
+        <div 
           className="absolute w-[500px] h-[500px] bg-gradient-to-r from-gray-600/20 to-gray-800/20 rounded-full blur-3xl"
           style={{
             top: '10%',
@@ -82,7 +134,7 @@ export default function Dashboard() {
             animation: 'float 20s ease-in-out infinite'
           }}
         />
-        <div
+        <div 
           className="absolute w-[600px] h-[600px] bg-gradient-to-r from-gray-700/15 to-gray-500/15 rounded-full blur-3xl"
           style={{
             bottom: '10%',
@@ -90,7 +142,7 @@ export default function Dashboard() {
             animation: 'float 25s ease-in-out infinite reverse'
           }}
         />
-        <div
+        <div 
           className="absolute w-[300px] h-[300px] bg-gradient-to-r from-gray-600/20 to-gray-400/20 rounded-full blur-3xl"
           style={{
             top: '50%',
@@ -102,7 +154,7 @@ export default function Dashboard() {
       </div>
 
       {/* Grid Pattern */}
-      <div
+      <div 
         className="absolute inset-0 opacity-10"
         style={{
           backgroundImage: `linear-gradient(rgba(156, 163, 175, 0.1) 1px, transparent 1px),
@@ -114,22 +166,12 @@ export default function Dashboard() {
       {/* Header */}
       <header className="relative z-10 backdrop-blur-xl bg-black/30 border-b border-gray-800/50">
         <div className="container mx-auto px-6 py-4 flex justify-between items-center">
-          <div
+          <div 
             className="flex items-center gap-3 cursor-pointer group"
             onClick={() => router.push('/')}
           >
-            <div className="relative w-12 h-12 flex items-center justify-center group-hover:scale-110 transition-transform">
-              {/* Outer glowing ring */}
-              <div className="absolute inset-0 rounded-full bg-gradient-to-br from-gray-300/60 via-gray-500/50 to-gray-700/60 blur-lg opacity-90 shadow-[0_0_15px_rgba(180,180,180,0.4)]" />
-
-              {/* Rotating gradient ring */}
-              <div className="absolute inset-[2px] rounded-full border-[2px] border-transparent bg-gradient-to-r from-gray-400 via-gray-200 to-gray-500 animate-spin-slow" />
-
-              {/* Inner rotating ring (counter rotation) */}
-              <div className="absolute inset-[6px] rounded-full border-[2px] border-transparent bg-gradient-to-r from-gray-700 via-gray-600 to-gray-800 animate-spin-slower" />
-
-              {/* Center hexagon core */}
-              <div className="relative w-5 h-5 rotate-45 bg-gradient-to-br from-gray-300 via-gray-500 to-gray-700 shadow-inner shadow-gray-800/70 border border-gray-300" />
+            <div className="w-10 h-10 bg-gradient-to-br from-gray-400 to-gray-600 rounded-lg flex items-center justify-center group-hover:scale-110 transition-transform">
+              <Zap className="w-6 h-6 text-black" />
             </div>
             <h1 className="text-2xl font-bold bg-gradient-to-r from-gray-200 to-gray-400 bg-clip-text text-transparent">
               RepChain
@@ -141,42 +183,56 @@ export default function Dashboard() {
 
       <main className="relative z-10 container mx-auto px-6 py-12">
         <div className="max-w-6xl mx-auto">
-
-          {/* Welcome Section with Animation */}
+          
+          {/* Welcome Section */}
           <div className="mb-12 animate-fade-in">
             <h2 className="text-4xl font-black bg-gradient-to-r from-gray-200 to-gray-400 bg-clip-text text-transparent mb-2">
-              Welcome Back
+              Welcome Back, {user.username || 'Anon'}
             </h2>
-            <p className="text-gray-500">Manage your on-chain reputation</p>
+            <p className="text-gray-500">Manage your on-chain reputation • ID: #{user.id}</p>
           </div>
 
           {/* Profile Card */}
           <div className="group bg-gradient-to-br from-gray-800/60 to-gray-900/60 backdrop-blur-2xl rounded-3xl p-8 mb-8 border border-gray-700/50 hover:border-gray-600/50 transition-all duration-500 shadow-2xl">
             <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-6">
-
+              
               <div className="flex items-center gap-6">
-                {/* Avatar with Glow */}
+                {/* Avatar */}
                 <div className="relative">
                   <div className="absolute inset-0 bg-gradient-to-r from-gray-500/50 to-gray-600/50 rounded-full blur-xl opacity-0 group-hover:opacity-100 transition-opacity" />
                   <div className="relative w-24 h-24 bg-gradient-to-br from-gray-700 to-gray-800 rounded-full flex items-center justify-center text-4xl border-2 border-gray-600 shadow-xl">
                     👤
                   </div>
                 </div>
-
+                
                 {/* Info */}
                 <div className="flex-1">
                   {isEditing ? (
-                    <input
-                      type="text"
-                      value={username}
-                      onChange={(e) => setUsername(e.target.value)}
-                      placeholder="Enter username"
-                      className="bg-gray-900/50 text-white text-2xl font-bold px-4 py-2 rounded-lg mb-2 border border-gray-700 focus:border-gray-500 focus:outline-none backdrop-blur-sm w-full"
-                    />
+                    <div className="space-y-2">
+                      <input
+                        type="text"
+                        value={username}
+                        onChange={(e) => setUsername(e.target.value)}
+                        placeholder="Enter username"
+                        className="bg-gray-900/50 text-white text-2xl font-bold px-4 py-2 rounded-lg border border-gray-700 focus:border-gray-500 focus:outline-none backdrop-blur-sm w-full"
+                      />
+                      <input
+                        type="email"
+                        value={email}
+                        onChange={(e) => setEmail(e.target.value)}
+                        placeholder="Email (optional)"
+                        className="bg-gray-900/50 text-white text-sm px-4 py-2 rounded-lg border border-gray-700 focus:border-gray-500 focus:outline-none backdrop-blur-sm w-full"
+                      />
+                    </div>
                   ) : (
-                    <h2 className="text-3xl font-black text-gray-200 mb-2">
-                      {username || 'Anonymous User'}
-                    </h2>
+                    <>
+                      <h2 className="text-3xl font-black text-gray-200 mb-2">
+                        {user.username || 'Anonymous User'}
+                      </h2>
+                      {user.email && (
+                        <p className="text-gray-400 text-sm mb-2">{user.email}</p>
+                      )}
+                    </>
                   )}
                   <p className="text-gray-500 font-mono text-sm flex items-center gap-2">
                     <Wallet className="w-4 h-4" />
@@ -187,9 +243,19 @@ export default function Dashboard() {
 
               <button
                 onClick={() => isEditing ? handleSaveProfile() : setIsEditing(true)}
-                className="bg-gray-800/80 hover:bg-gray-700/80 backdrop-blur-sm text-white font-semibold px-6 py-2.5 rounded-lg transition-all border border-gray-700 hover:border-gray-600 hover:scale-105 transform"
+                disabled={saving}
+                className="bg-gray-800/80 hover:bg-gray-700/80 backdrop-blur-sm text-white font-semibold px-6 py-2.5 rounded-lg transition-all border border-gray-700 hover:border-gray-600 hover:scale-105 transform disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                {isEditing ? 'Save Profile' : 'Edit Profile'}
+                {saving ? (
+                  <span className="flex items-center gap-2">
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    Saving...
+                  </span>
+                ) : isEditing ? (
+                  '💾 Save Profile'
+                ) : (
+                  '✏️ Edit Profile'
+                )}
               </button>
             </div>
 
@@ -209,20 +275,17 @@ export default function Dashboard() {
                 />
               ) : (
                 <p className="text-gray-300 leading-relaxed">
-                  {bio || 'No bio added yet. Click Edit Profile to add one!'}
+                  {user.bio || 'No bio added yet. Click Edit Profile to add one!'}
                 </p>
               )}
             </div>
           </div>
 
-          {/* Stats Grid with Stagger Animation */}
+          {/* Stats Grid */}
           <div className="grid md:grid-cols-3 gap-6 mb-8">
-
+            
             {/* Balance Card */}
-            <div
-              className="group bg-gradient-to-br from-gray-800/60 to-gray-900/60 backdrop-blur-2xl rounded-2xl p-6 border border-gray-700/50 hover:border-gray-600/50 transition-all duration-500 shadow-xl hover:scale-105 transform"
-              style={{ animationDelay: '0.1s' }}
-            >
+            <div className="group bg-gradient-to-br from-gray-800/60 to-gray-900/60 backdrop-blur-2xl rounded-2xl p-6 border border-gray-700/50 hover:border-gray-600/50 transition-all duration-500 shadow-xl hover:scale-105 transform">
               <div className="flex items-center justify-between mb-4">
                 <div className="w-12 h-12 bg-gray-800 rounded-xl flex items-center justify-center border border-gray-700 group-hover:border-gray-600 transition-colors">
                   <Wallet className="w-6 h-6 text-gray-400 group-hover:text-gray-300" />
@@ -240,29 +303,23 @@ export default function Dashboard() {
             </div>
 
             {/* Reputation Card */}
-            <div
-              className="group bg-gradient-to-br from-gray-800/60 to-gray-900/60 backdrop-blur-2xl rounded-2xl p-6 border border-gray-700/50 hover:border-gray-600/50 transition-all duration-500 shadow-xl hover:scale-105 transform"
-              style={{ animationDelay: '0.2s' }}
-            >
+            <div className="group bg-gradient-to-br from-gray-800/60 to-gray-900/60 backdrop-blur-2xl rounded-2xl p-6 border border-gray-700/50 hover:border-gray-600/50 transition-all duration-500 shadow-xl hover:scale-105 transform">
               <div className="flex items-center justify-between mb-4">
                 <div className="w-12 h-12 bg-gray-800 rounded-xl flex items-center justify-center border border-gray-700 group-hover:border-gray-600 transition-colors">
                   <Star className="w-6 h-6 text-gray-400 group-hover:text-gray-300" />
                 </div>
-                <div className="text-xs bg-gray-800 px-2 py-1 rounded text-gray-500">+0</div>
+                <div className="text-xs bg-gray-800 px-2 py-1 rounded text-gray-500">Rank #∞</div>
               </div>
               <h3 className="text-gray-400 text-sm font-semibold mb-2">Reputation</h3>
-              <p className="text-3xl font-black text-gray-200">0</p>
+              <p className="text-3xl font-black text-gray-200">{user.reputationScore}</p>
               <p className="text-gray-600 text-xs mt-2 flex items-center gap-1">
                 <span className="w-1.5 h-1.5 bg-gray-600 rounded-full" />
-                Connect GitHub to start
+                Connect GitHub to boost
               </p>
             </div>
 
             {/* Jobs Card */}
-            <div
-              className="group bg-gradient-to-br from-gray-800/60 to-gray-900/60 backdrop-blur-2xl rounded-2xl p-6 border border-gray-700/50 hover:border-gray-600/50 transition-all duration-500 shadow-xl hover:scale-105 transform"
-              style={{ animationDelay: '0.3s' }}
-            >
+            <div className="group bg-gradient-to-br from-gray-800/60 to-gray-900/60 backdrop-blur-2xl rounded-2xl p-6 border border-gray-700/50 hover:border-gray-600/50 transition-all duration-500 shadow-xl hover:scale-105 transform">
               <div className="flex items-center justify-between mb-4">
                 <div className="w-12 h-12 bg-gray-800 rounded-xl flex items-center justify-center border border-gray-700 group-hover:border-gray-600 transition-colors">
                   <CheckCircle className="w-6 h-6 text-gray-400 group-hover:text-gray-300" />
@@ -284,9 +341,9 @@ export default function Dashboard() {
               <Zap className="w-6 h-6 text-gray-400" />
               Quick Actions
             </h3>
-
+            
             <div className="grid md:grid-cols-2 gap-4">
-
+              
               <button className="group relative bg-gray-800/60 hover:bg-gray-700/60 backdrop-blur-sm border border-gray-700/50 hover:border-gray-600/50 text-white font-semibold py-6 px-6 rounded-xl transition-all transform hover:scale-105 text-left overflow-hidden">
                 <div className="absolute inset-0 bg-gradient-to-r from-transparent via-gray-600/10 to-transparent translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-1000" />
                 <div className="relative flex items-start gap-4">
@@ -299,7 +356,7 @@ export default function Dashboard() {
                   </div>
                 </div>
               </button>
-
+              
               <button className="group relative bg-gray-800/60 hover:bg-gray-700/60 backdrop-blur-sm border border-gray-700/50 hover:border-gray-600/50 text-white font-semibold py-6 px-6 rounded-xl transition-all transform hover:scale-105 text-left overflow-hidden">
                 <div className="absolute inset-0 bg-gradient-to-r from-transparent via-gray-600/10 to-transparent translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-1000" />
                 <div className="relative flex items-start gap-4">
@@ -312,7 +369,7 @@ export default function Dashboard() {
                   </div>
                 </div>
               </button>
-
+              
               <button className="group relative bg-gray-800/60 hover:bg-gray-700/60 backdrop-blur-sm border border-gray-700/50 hover:border-gray-600/50 text-white font-semibold py-6 px-6 rounded-xl transition-all transform hover:scale-105 text-left overflow-hidden">
                 <div className="absolute inset-0 bg-gradient-to-r from-transparent via-gray-600/10 to-transparent translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-1000" />
                 <div className="relative flex items-start gap-4">
@@ -325,7 +382,7 @@ export default function Dashboard() {
                   </div>
                 </div>
               </button>
-
+              
               <button className="group relative bg-gray-800/60 hover:bg-gray-700/60 backdrop-blur-sm border border-gray-700/50 hover:border-gray-600/50 text-white font-semibold py-6 px-6 rounded-xl transition-all transform hover:scale-105 text-left overflow-hidden">
                 <div className="absolute inset-0 bg-gradient-to-r from-transparent via-gray-600/10 to-transparent translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-1000" />
                 <div className="relative flex items-start gap-4">
