@@ -6,13 +6,6 @@ import { useWallet } from '@solana/wallet-adapter-react';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { Sparkles, Zap, Shield, TrendingUp } from 'lucide-react';
-import { Bungee } from 'next/font/google';
-const bungee = Bungee({
-  subsets: ['latin'],
-  weight: ['400'],
-  display: 'swap',
-});
-
 
 export default function Home() {
   const { publicKey, connected } = useWallet();
@@ -115,7 +108,7 @@ export default function Home() {
             </span>
           </div>
 
-          <h2 className={`${bungee.className} text-7xl md:text-8xl font-black mb-6 leading-tight`}>
+          <h2 className="text-7xl md:text-8xl font-black mb-6 leading-tight">
             <span className="bg-gradient-to-r from-gray-100 via-gray-300 to-gray-500 bg-clip-text text-transparent inline-block animate-gradient">
               Your Reputation
             </span>

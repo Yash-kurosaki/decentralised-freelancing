@@ -4,8 +4,24 @@ import dotenv from 'dotenv';
 import sequelize from './config/database';
 import { User, Job } from './models';
 import authRoutes from './routes/auth';
+import jobRoutes from './routes/jobs';
+import githubRoutes from './routes/github';
+import { AutoReleaseService } from './services/autoReleaseService';
 
 dotenv.config();
+
+// Validate required environment variables on startup
+const validateEnv = () => {
+  const required = ['JWT_SECRET', 'DB_NAME', 'DB_USER', 'DB_PASSWORD'];
+  const missing = required.filter(key => !process.env[key]);
+  
+  if (missing.length > 0) {
+    console.error('❌ Missing required environment variables:', missing.join(', '));
+    process.exit(1);
+  }
+};
+
+validateEnv();
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -16,6 +32,12 @@ app.use(cors({
   credentials: true
 }));
 app.use(express.json());
+
+// Request logging middleware
+app.use((req, res, next) => {
+  console.log(`${new Date().toISOString()} - ${req.method} ${req.path}`);
+  next();
+});
 
 // Health check route
 app.get('/health', (req: Request, res: Response) => {
@@ -44,8 +66,24 @@ app.get('/api/test-db', async (req: Request, res: Response) => {
   }
 });
 
-// Auth routes
+// API Routes
 app.use('/api/auth', authRoutes);
+app.use('/api/jobs', jobRoutes);
+app.use('/api/github', githubRoutes);
+
+// 404 handler
+app.use((req: Request, res: Response) => {
+  res.status(404).json({ error: 'Route not found' });
+});
+
+// Error handling middleware
+app.use((err: Error, req: Request, res: Response, next: any) => {
+  console.error('Error:', err);
+  res.status(500).json({ 
+    error: 'Internal server error',
+    message: process.env.NODE_ENV === 'development' ? err.message : undefined
+  });
+});
 
 // Initialize database and start server
 const startServer = async () => {
@@ -54,33 +92,43 @@ const startServer = async () => {
     await sequelize.authenticate();
     console.log('✅ Database connection established successfully.');
 
-    // Sync models (creates tables if they don't exist)
-    await sequelize.sync({ alter: true });
-    console.log('✅ Database models synchronized.');
+    // Sync models (use sync() without alter in production)
+    if (process.env.NODE_ENV === 'development') {
+      await sequelize.sync({ alter: true });
+      console.log('✅ Database models synchronized (development mode).');
+    } else {
+      await sequelize.sync();
+      console.log('✅ Database models loaded.');
+    }
 
-    // Start server and store the server instance
+    // Start server
     const server = app.listen(PORT, () => {
       console.log(`🚀 Server running on http://localhost:${PORT}`);
       console.log(`📊 Database: ${process.env.DB_NAME}`);
       console.log(`🌍 Environment: ${process.env.NODE_ENV || 'development'}`);
     });
 
-    // Handle graceful shutdown
-    process.on('SIGTERM', () => {
-      console.log('SIGTERM signal received: closing HTTP server');
-      server.close(() => {
-        console.log('HTTP server closed');
-        sequelize.close();
-      });
-    });
+    // 🆕 Start auto-release scheduler
+    const schedulerInterval = AutoReleaseService.startScheduler();
+    console.log('✅ Auto-release scheduler initialized');
 
-    process.on('SIGINT', () => {
-      console.log('SIGINT signal received: closing HTTP server');
-      server.close(() => {
-        console.log('HTTP server closed');
-        sequelize.close();
+    // Handle graceful shutdown
+    const shutdown = async () => {
+      console.log('Shutting down gracefully...');
+      
+      // Stop scheduler
+      clearInterval(schedulerInterval);
+      console.log('✅ Auto-release scheduler stopped');
+      
+      server.close(async () => {
+        await sequelize.close();
+        console.log('✅ Server closed');
+        process.exit(0);
       });
-    });
+    };
+
+    process.on('SIGTERM', shutdown);
+    process.on('SIGINT', shutdown);
 
   } catch (error) {
     console.error('❌ Unable to start server:', error);
@@ -88,8 +136,6 @@ const startServer = async () => {
   }
 };
 
-// Don't call startServer here if using nodemon, 
-// but DO call it to actually start the server
 startServer();
 
 export default app;

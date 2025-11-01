@@ -1,5 +1,5 @@
 import User from './User';
-import Job from './job';
+import Job from './Job';
 
 // Define associations
 User.hasMany(Job, { foreignKey: 'clientId', as: 'clientJobs' });

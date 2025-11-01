@@ -187,7 +187,7 @@ export default function Dashboard() {
           {/* Welcome Section */}
           <div className="mb-12 animate-fade-in">
             <h2 className="text-4xl font-black bg-gradient-to-r from-gray-200 to-gray-400 bg-clip-text text-transparent mb-2">
-              Welcome Back, {user.username || 'Anon'}
+              Welcome Back, {user.username}
             </h2>
             <p className="text-gray-500">Manage your on-chain reputation • ID: #{user.id}</p>
           </div>

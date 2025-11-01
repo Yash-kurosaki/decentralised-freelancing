@@ -136,6 +136,10 @@ class ApiService {
 
     const data = await response.json();
     this.setToken(data.token);
+    // 🔹 Save wallet address for later use
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('walletAddress', walletAddress);
+    }
     return data;
   }
 
@@ -158,10 +162,16 @@ class ApiService {
     bio?: string;
     email?: string;
   }): Promise<User> {
+    // Get wallet address (stored after login)
+    const walletAddress = localStorage.getItem('walletAddress');
+
+    // Combine wallet address with other data
+    const payload = { ...data, walletAddress };
+
     const response = await fetch(`${API_URL}/api/auth/profile`, {
       method: 'PUT',
       headers: this.getHeaders(),
-      body: JSON.stringify(data),
+      body: JSON.stringify(payload),
     });
 
     if (!response.ok) {

@@ -1,19 +1,16 @@
 import { Router, Request, Response } from 'express';
 import { User } from '../models';
-import { verifyWalletSignature } from '../middleware/auth';
+import { verifyWalletSignature, authenticate, AuthRequest } from '../middleware/auth';
+import { validateWalletAddress, validateSignature, validateProfileUpdate } from '../middleware/validation';
 import jwt from 'jsonwebtoken';
 
 const router = Router();
 const JWT_SECRET = process.env.JWT_SECRET!;
 
 // Generate nonce for signing
-router.post('/nonce', async (req: Request, res: Response) => {
+router.post('/nonce', validateWalletAddress, async (req: Request, res: Response) => {
   try {
     const { walletAddress } = req.body;
-
-    if (!walletAddress) {
-      return res.status(400).json({ error: 'Wallet address required' });
-    }
 
     const nonce = Math.floor(Math.random() * 1000000).toString();
     const message = `Sign this message to authenticate with RepChain: ${nonce}`;
@@ -26,13 +23,9 @@ router.post('/nonce', async (req: Request, res: Response) => {
 });
 
 // Login/Register with wallet signature
-router.post('/login', async (req: Request, res: Response) => {
+router.post('/login', validateWalletAddress, validateSignature, async (req: Request, res: Response) => {
   try {
     const { walletAddress, signature, message } = req.body;
-
-    if (!walletAddress || !signature || !message) {
-      return res.status(400).json({ error: 'Missing required fields' });
-    }
 
     // Verify signature
     const isValid = verifyWalletSignature(message, signature, walletAddress);
@@ -46,6 +39,7 @@ router.post('/login', async (req: Request, res: Response) => {
 
     if (!user) {
       user = await User.create({ walletAddress });
+      console.log(`✅ New user created: ${walletAddress}`);
     }
 
     // Generate JWT
@@ -62,7 +56,9 @@ router.post('/login', async (req: Request, res: Response) => {
         walletAddress: user.walletAddress,
         username: user.username,
         bio: user.bio,
-        reputationScore: user.reputationScore
+        email: user.email,
+        reputationScore: user.reputationScore,
+        githubUsername: user.githubUsername
       }
     });
   } catch (error) {
@@ -72,16 +68,9 @@ router.post('/login', async (req: Request, res: Response) => {
 });
 
 // Get current user profile
-router.get('/me', async (req: Request, res: Response) => {
+router.get('/me', authenticate, async (req: AuthRequest, res: Response) => {
   try {
-    const token = req.headers.authorization?.split(' ')[1];
-
-    if (!token) {
-      return res.status(401).json({ error: 'No token provided' });
-    }
-
-    const decoded = jwt.verify(token, JWT_SECRET) as { id: number };
-    const user = await User.findByPk(decoded.id);
+    const user = await User.findByPk(req.user!.id);
 
     if (!user) {
       return res.status(404).json({ error: 'User not found' });
@@ -95,25 +84,19 @@ router.get('/me', async (req: Request, res: Response) => {
       email: user.email,
       githubUsername: user.githubUsername,
       reputationScore: user.reputationScore,
-      profileImage: user.profileImage
+      profileImage: user.profileImage,
+      createdAt: user.createdAt
     });
   } catch (error) {
     console.error('Get user error:', error);
-    res.status(401).json({ error: 'Invalid token' });
+    res.status(500).json({ error: 'Failed to fetch user' });
   }
 });
 
 // Update user profile
-router.put('/profile', async (req: Request, res: Response) => {
+router.put('/profile', authenticate, validateProfileUpdate, async (req: AuthRequest, res: Response) => {
   try {
-    const token = req.headers.authorization?.split(' ')[1];
-
-    if (!token) {
-      return res.status(401).json({ error: 'No token provided' });
-    }
-
-    const decoded = jwt.verify(token, JWT_SECRET) as { id: number };
-    const user = await User.findByPk(decoded.id);
+    const user = await User.findByPk(req.user!.id);
 
     if (!user) {
       return res.status(404).json({ error: 'User not found' });
@@ -121,10 +104,18 @@ router.put('/profile', async (req: Request, res: Response) => {
 
     const { username, bio, email } = req.body;
 
+    // Check if username is already taken
+    if (username && username !== user.username) {
+      const existingUser = await User.findOne({ where: { username } });
+      if (existingUser) {
+        return res.status(400).json({ error: 'Username already taken' });
+      }
+    }
+
     await user.update({
-      username: username || user.username,
-      bio: bio || user.bio,
-      email: email || user.email
+      username: username !== undefined ? username : user.username,
+      bio: bio !== undefined ? bio : user.bio,
+      email: email !== undefined ? email : user.email
     });
 
     res.json({
@@ -134,12 +125,43 @@ router.put('/profile', async (req: Request, res: Response) => {
         walletAddress: user.walletAddress,
         username: user.username,
         bio: user.bio,
-        email: user.email
+        email: user.email,
+        reputationScore: user.reputationScore
       }
     });
   } catch (error) {
     console.error('Update profile error:', error);
     res.status(500).json({ error: 'Failed to update profile' });
+  }
+});
+
+// Get user by wallet address or ID
+router.get('/user/:identifier', async (req: Request, res: Response) => {
+  try {
+    const { identifier } = req.params;
+
+    // Check if identifier is numeric (ID) or string (wallet address)
+    const user = isNaN(Number(identifier))
+      ? await User.findOne({ where: { walletAddress: identifier } })
+      : await User.findByPk(Number(identifier));
+
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    // Return public profile only
+    res.json({
+      id: user.id,
+      walletAddress: user.walletAddress,
+      username: user.username,
+      bio: user.bio,
+      reputationScore: user.reputationScore,
+      profileImage: user.profileImage,
+      githubUsername: user.githubUsername
+    });
+  } catch (error) {
+    console.error('Get user by identifier error:', error);
+    res.status(500).json({ error: 'Failed to fetch user' });
   }
 });
 

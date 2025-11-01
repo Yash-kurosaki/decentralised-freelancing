@@ -35,25 +35,24 @@ interface JobAttributes {
 interface JobCreationAttributes extends Optional<JobAttributes, 'id' | 'status'> {}
 
 class Job extends Model<JobAttributes, JobCreationAttributes> implements JobAttributes {
-  public id!: number;
-  public jobId!: string;
-  public clientId!: number;
-  public freelancerId?: number;
-  public title!: string;
-  public description!: string;
-  public requirements?: string;
-  public budget!: number;
-  public deadline!: Date;
-  public status!: JobStatus;
-  public submissionUrl?: string;
-  public submittedAt?: Date;
-  public reviewedAt?: Date;
-  public rejectionReason?: string;
-  public escrowAddress?: string;
-  public transactionSignature?: string;
-
-  public readonly createdAt!: Date;
-  public readonly updatedAt!: Date;
+  declare id: number;
+  declare jobId: string;
+  declare clientId: number;
+  declare freelancerId?: number;
+  declare title: string;
+  declare description: string;
+  declare requirements?: string;
+  declare budget: number;
+  declare deadline: Date;
+  declare status: JobStatus;
+  declare submissionUrl?: string;
+  declare submittedAt?: Date;
+  declare reviewedAt?: Date;
+  declare rejectionReason?: string;
+  declare escrowAddress?: string;
+  declare transactionSignature?: string;
+  declare readonly createdAt: Date;
+  declare readonly updatedAt: Date;
 }
 
 Job.init(
