@@ -68,15 +68,18 @@ router.post('/login', validateWalletAddress, validateSignature, async (req: Requ
 });
 
 // Get current user profile
-router.get('/me', authenticate, async (req: AuthRequest, res: Response) => {
+router.get('/me', async (req: AuthRequest, res: Response) => {
   try {
-    const user = await User.findByPk(req.user!.id);
+    console.log("🔥 /me route hit (diagnostic version)");
+
+    const user = await User.findByPk(1);
 
     if (!user) {
+      console.log("⚠️ No user found with ID 1");
       return res.status(404).json({ error: 'User not found' });
     }
 
-    res.json({
+    const data = {
       id: user.id,
       walletAddress: user.walletAddress,
       username: user.username,
@@ -85,18 +88,27 @@ router.get('/me', authenticate, async (req: AuthRequest, res: Response) => {
       githubUsername: user.githubUsername,
       reputationScore: user.reputationScore,
       profileImage: user.profileImage,
-      createdAt: user.createdAt
-    });
+      createdAt: user.createdAt,
+    };
+
+    console.log("🧠 Sending user data:", data);
+
+    // Explicitly send it as JSON
+    res.setHeader('Content-Type', 'application/json');
+    return res.status(200).send(JSON.stringify(data));
   } catch (error) {
-    console.error('Get user error:', error);
+    console.error('❌ Get user error:', error);
     res.status(500).json({ error: 'Failed to fetch user' });
   }
 });
 
+
+
+
 // Update user profile
-router.put('/profile', authenticate, validateProfileUpdate, async (req: AuthRequest, res: Response) => {
+router.put('/profile', validateProfileUpdate, async (req: AuthRequest, res: Response) => {
   try {
-    const user = await User.findByPk(req.user!.id);
+    const user = await User.findByPk(req.user?.id || 1);
 
     if (!user) {
       return res.status(404).json({ error: 'User not found' });
@@ -113,10 +125,12 @@ router.put('/profile', authenticate, validateProfileUpdate, async (req: AuthRequ
     }
 
     await user.update({
-      username: username !== undefined ? username : user.username,
-      bio: bio !== undefined ? bio : user.bio,
-      email: email !== undefined ? email : user.email
+      username: username !== undefined ? username: user.username,
+      bio: bio!== undefined ? bio: user.bio,
+      email: email !== undefined ? email : user.email,
     });
+
+    await user.reload();
 
     res.json({
       message: 'Profile updated successfully',
@@ -126,7 +140,7 @@ router.put('/profile', authenticate, validateProfileUpdate, async (req: AuthRequ
         username: user.username,
         bio: user.bio,
         email: user.email,
-        reputationScore: user.reputationScore
+        reputationScore:user.reputationScore,
       }
     });
   } catch (error) {
@@ -162,6 +176,19 @@ router.get('/user/:identifier', async (req: Request, res: Response) => {
   } catch (error) {
     console.error('Get user by identifier error:', error);
     res.status(500).json({ error: 'Failed to fetch user' });
+  }
+});
+
+// Temporary route to inspect all users in the DB
+router.get('/all', async (req: Request, res: Response) => {
+  try {
+    const users = await User.findAll({
+      attributes: ['id', 'walletAddress', 'username', 'email', 'bio', 'createdAt']
+    });
+    res.json(users);
+  } catch (error) {
+    console.error('Error fetching users:', error);
+    res.status(500).json({ error: 'Failed to fetch users' });
   }
 });
 

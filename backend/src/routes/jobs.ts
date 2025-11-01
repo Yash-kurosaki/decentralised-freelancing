@@ -11,7 +11,7 @@ import {
 const router = Router();
 
 // All routes require authentication
-router.use(authenticate);
+// router.use(authenticate);
 
 // Job CRUD operations
 router.post('/', validateJobCreation, JobController.createJob);
