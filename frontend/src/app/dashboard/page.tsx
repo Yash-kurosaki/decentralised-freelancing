@@ -14,7 +14,7 @@ export default function Dashboard() {
   const { connection } = useConnection();
   const router = useRouter();
   const { user, loading: authLoading, authenticate, updateProfile, isAuthenticated } = useAuth();
-  
+
   const [balance, setBalance] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
   const [username, setUsername] = useState('');
@@ -37,16 +37,18 @@ export default function Dashboard() {
     const doAuth = async () => {
       if (connected && publicKey && !isAuthenticated && !authLoading) {
         try {
+          console.log('🔐 Starting authentication...');
           await authenticate();
+          console.log('✅ Authentication successful!');
         } catch (error) {
-          console.error('Authentication failed:', error);
+          console.error('❌ Authentication failed:', error);
           setAuthError(error instanceof Error ? error.message : 'Authentication failed');
         }
       }
     };
 
     doAuth();
-  }, [connected, publicKey, isAuthenticated, authLoading, authenticate]);
+  }, [connected, publicKey, isAuthenticated, authLoading]);
 
   // Load user data into form
   useEffect(() => {
@@ -110,23 +112,31 @@ export default function Dashboard() {
   if (authLoading || !user) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-gray-950 via-gray-900 to-black flex items-center justify-center">
-        <div className="text-center">
-          <Loader2 className="w-12 h-12 text-gray-400 animate-spin mx-auto mb-4" />
-          <p className="text-gray-400">Authenticating with backend...</p>
-          {authError && (
-            <p className="text-red-400 mt-4 text-sm">{authError}</p>
-          )}
-        </div>
+      <div className="text-center">
+        <Loader2 className="w-12 h-12 text-gray-400 animate-spin mx-auto mb-4" />
+        <p className="text-gray-400 mb-4">Authenticating with backend...</p>
+        {authError && (
+          <>
+            <p className="text-red-400 mb-4 text-sm">{authError}</p>
+            <button
+              onClick={authenticate}
+              className="bg-blue-600 hover:bg-blue-700 text-white font-semibold px-6 py-3 rounded-lg transition-all"
+            >
+              🔐 Sign In with Wallet
+            </button>
+          </>
+        )}
       </div>
+    </div>
     );
   }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-950 via-gray-900 to-black text-white overflow-hidden relative">
-      
+
       {/* Animated Background */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        <div 
+        <div
           className="absolute w-[500px] h-[500px] bg-gradient-to-r from-gray-600/20 to-gray-800/20 rounded-full blur-3xl"
           style={{
             top: '10%',
@@ -134,7 +144,7 @@ export default function Dashboard() {
             animation: 'float 20s ease-in-out infinite'
           }}
         />
-        <div 
+        <div
           className="absolute w-[600px] h-[600px] bg-gradient-to-r from-gray-700/15 to-gray-500/15 rounded-full blur-3xl"
           style={{
             bottom: '10%',
@@ -142,7 +152,7 @@ export default function Dashboard() {
             animation: 'float 25s ease-in-out infinite reverse'
           }}
         />
-        <div 
+        <div
           className="absolute w-[300px] h-[300px] bg-gradient-to-r from-gray-600/20 to-gray-400/20 rounded-full blur-3xl"
           style={{
             top: '50%',
@@ -154,7 +164,7 @@ export default function Dashboard() {
       </div>
 
       {/* Grid Pattern */}
-      <div 
+      <div
         className="absolute inset-0 opacity-10"
         style={{
           backgroundImage: `linear-gradient(rgba(156, 163, 175, 0.1) 1px, transparent 1px),
@@ -166,7 +176,7 @@ export default function Dashboard() {
       {/* Header */}
       <header className="relative z-10 backdrop-blur-xl bg-black/30 border-b border-gray-800/50">
         <div className="container mx-auto px-6 py-4 flex justify-between items-center">
-          <div 
+          <div
             className="flex items-center gap-3 cursor-pointer group"
             onClick={() => router.push('/')}
           >
@@ -183,7 +193,7 @@ export default function Dashboard() {
 
       <main className="relative z-10 container mx-auto px-6 py-12">
         <div className="max-w-6xl mx-auto">
-          
+
           {/* Welcome Section */}
           <div className="mb-12 animate-fade-in">
             <h2 className="text-4xl font-black bg-gradient-to-r from-gray-200 to-gray-400 bg-clip-text text-transparent mb-2">
@@ -195,7 +205,7 @@ export default function Dashboard() {
           {/* Profile Card */}
           <div className="group bg-gradient-to-br from-gray-800/60 to-gray-900/60 backdrop-blur-2xl rounded-3xl p-8 mb-8 border border-gray-700/50 hover:border-gray-600/50 transition-all duration-500 shadow-2xl">
             <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-6">
-              
+
               <div className="flex items-center gap-6">
                 {/* Avatar */}
                 <div className="relative">
@@ -204,7 +214,7 @@ export default function Dashboard() {
                     👤
                   </div>
                 </div>
-                
+
                 {/* Info */}
                 <div className="flex-1">
                   {isEditing ? (
@@ -283,7 +293,7 @@ export default function Dashboard() {
 
           {/* Stats Grid */}
           <div className="grid md:grid-cols-3 gap-6 mb-8">
-            
+
             {/* Balance Card */}
             <div className="group bg-gradient-to-br from-gray-800/60 to-gray-900/60 backdrop-blur-2xl rounded-2xl p-6 border border-gray-700/50 hover:border-gray-600/50 transition-all duration-500 shadow-xl hover:scale-105 transform">
               <div className="flex items-center justify-between mb-4">
@@ -341,9 +351,9 @@ export default function Dashboard() {
               <Zap className="w-6 h-6 text-gray-400" />
               Quick Actions
             </h3>
-            
+
             <div className="grid md:grid-cols-2 gap-4">
-              
+
               <button className="group relative bg-gray-800/60 hover:bg-gray-700/60 backdrop-blur-sm border border-gray-700/50 hover:border-gray-600/50 text-white font-semibold py-6 px-6 rounded-xl transition-all transform hover:scale-105 text-left overflow-hidden">
                 <div className="absolute inset-0 bg-gradient-to-r from-transparent via-gray-600/10 to-transparent translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-1000" />
                 <div className="relative flex items-start gap-4">
@@ -356,7 +366,7 @@ export default function Dashboard() {
                   </div>
                 </div>
               </button>
-              
+
               <button className="group relative bg-gray-800/60 hover:bg-gray-700/60 backdrop-blur-sm border border-gray-700/50 hover:border-gray-600/50 text-white font-semibold py-6 px-6 rounded-xl transition-all transform hover:scale-105 text-left overflow-hidden">
                 <div className="absolute inset-0 bg-gradient-to-r from-transparent via-gray-600/10 to-transparent translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-1000" />
                 <div className="relative flex items-start gap-4">
@@ -369,7 +379,7 @@ export default function Dashboard() {
                   </div>
                 </div>
               </button>
-              
+
               <button className="group relative bg-gray-800/60 hover:bg-gray-700/60 backdrop-blur-sm border border-gray-700/50 hover:border-gray-600/50 text-white font-semibold py-6 px-6 rounded-xl transition-all transform hover:scale-105 text-left overflow-hidden">
                 <div className="absolute inset-0 bg-gradient-to-r from-transparent via-gray-600/10 to-transparent translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-1000" />
                 <div className="relative flex items-start gap-4">
@@ -382,7 +392,7 @@ export default function Dashboard() {
                   </div>
                 </div>
               </button>
-              
+
               <button className="group relative bg-gray-800/60 hover:bg-gray-700/60 backdrop-blur-sm border border-gray-700/50 hover:border-gray-600/50 text-white font-semibold py-6 px-6 rounded-xl transition-all transform hover:scale-105 text-left overflow-hidden">
                 <div className="absolute inset-0 bg-gradient-to-r from-transparent via-gray-600/10 to-transparent translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-1000" />
                 <div className="relative flex items-start gap-4">

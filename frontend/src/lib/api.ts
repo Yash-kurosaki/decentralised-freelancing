@@ -16,13 +16,46 @@ export interface AuthResponse {
   user: User;
 }
 
+export interface Job {
+  id: number;
+  jobId: string;
+  clientId: number;
+  freelancerId?: number;
+  title: string;
+  description: string;
+  requirements?: string;
+  budget: number;
+  deadline: string;
+  status: 'OPEN' | 'IN_PROGRESS' | 'SUBMITTED' | 'COMPLETED' | 'AUTO_RELEASED' | 'DISPUTED' | 'CANCELLED';
+  submissionUrl?: string;
+  submittedAt?: string;
+  reviewedAt?: string;
+  rejectionReason?: string;
+  escrowAddress?: string;
+  transactionSignature?: string;
+  createdAt: string;
+  updatedAt: string;
+  client?: User;
+  freelancer?: User;
+}
+
+export interface CreateJobData {
+  title: string;
+  description: string;
+  requirements?: string;
+  budget: number;
+  deadline: string;
+}
+
 class ApiService {
   private token: string | null = null;
 
   constructor() {
-    // Load token from localStorage on init
     if (typeof window !== 'undefined') {
-      this.token = localStorage.getItem('authToken');
+      // Check both key names in case the login flow uses a different one
+      this.token = localStorage.getItem('authToken') || localStorage.getItem('token');
+
+      console.log('Loaded token from storage:', this.token);
     }
   }
 
@@ -52,77 +85,26 @@ class ApiService {
     return headers;
   }
 
-  // Get nonce for wallet signing
+  // ==================== AUTH ====================
+
   async getNonce(walletAddress: string): Promise<{ message: string; nonce: string }> {
     if (!walletAddress) throw new Error('walletAddress is required');
 
-    // Resolve a usable fetch implementation. Try global fetch first; if missing, fall back to cross-fetch via require (works in Node).
-    let fetchFn: any = (typeof fetch !== 'undefined') ? fetch : (globalThis as any).fetch;
+    const response = await fetch(`${API_URL}/api/auth/nonce`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ walletAddress }),
+    });
 
-    if (!fetchFn) {
-      try {
-        // use require here so TS/ESM environments that don't have cross-fetch won't fail at import time
-        // eslint-disable-next-line @typescript-eslint/no-var-requires
-        const cf = require('cross-fetch');
-        // cross-fetch exports a fetch function as default or directly
-        fetchFn = cf && (cf.default || cf.fetch || cf);
-      } catch (e) {
-        throw new Error(
-          'fetch is not available in this environment. Install `cross-fetch` (npm i cross-fetch) or run on Node 18+.'
-        );
-      }
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.error || 'Failed to get nonce');
     }
 
-    const url = `${API_URL}/api/auth/nonce`;
-
-    try {
-      const response = await fetchFn(url, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ walletAddress }),
-      });
-
-      // Defensive check: make sure we got an object resembling a Fetch Response
-      if (!response || typeof response.ok === 'undefined') {
-        throw new Error('Invalid response from fetch. Make sure `fetch` implementation is correct.');
-      }
-
-      if (!response.ok) {
-        let msg = `Failed to get nonce (status ${response.status})`;
-        try {
-          const err = await response.json();
-          if (err && (err.error || err.message)) msg = err.error || err.message;
-        } catch (e) {
-          /* ignore JSON parse errors */
-        }
-        throw new Error(msg);
-      }
-
-      const data = await response.json();
-      return {
-        message: data.message,
-        nonce: data.nonce,
-      };
-    } catch (err: any) {
-      // Log details to help debugging (won't break program flow other than throwing the error)
-      // eslint-disable-next-line no-console
-      console.error('apiService.getNonce error', {
-        walletAddress,
-        url,
-        fetchType: typeof fetchFn,
-        errorMessage: err && err.message ? err.message : err,
-        stack: err && err.stack ? err.stack : undefined,
-      });
-      throw err;
-    }
+    return response.json();
   }
 
-  // Login/Register with wallet signature
-  async login(
-    walletAddress: string,
-    signature: string,
-    message: string
-  ): Promise<AuthResponse> {
+  async login(walletAddress: string, signature: string, message: string): Promise<AuthResponse> {
     const response = await fetch(`${API_URL}/api/auth/login`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -136,14 +118,9 @@ class ApiService {
 
     const data = await response.json();
     this.setToken(data.token);
-    // 🔹 Save wallet address for later use
-    if (typeof window !== 'undefined') {
-      localStorage.setItem('walletAddress', walletAddress);
-    }
     return data;
   }
 
-  // Get current user profile
   async getProfile(): Promise<User> {
     const response = await fetch(`${API_URL}/api/auth/me`, {
       headers: this.getHeaders(),
@@ -156,22 +133,15 @@ class ApiService {
     return response.json();
   }
 
-  // Update user profile
   async updateProfile(data: {
     username?: string;
     bio?: string;
     email?: string;
   }): Promise<User> {
-    // Get wallet address (stored after login)
-    const walletAddress = localStorage.getItem('walletAddress');
-
-    // Combine wallet address with other data
-    const payload = { ...data, walletAddress };
-
     const response = await fetch(`${API_URL}/api/auth/profile`, {
       method: 'PUT',
       headers: this.getHeaders(),
-      body: JSON.stringify(payload),
+      body: JSON.stringify(data),
     });
 
     if (!response.ok) {
@@ -183,9 +153,154 @@ class ApiService {
     return result.user;
   }
 
-  // Logout
   logout() {
     this.clearToken();
+  }
+
+  // ==================== JOBS ====================
+
+  async createJob(data: CreateJobData): Promise<Job> {
+    const response = await fetch(`${API_URL}/api/jobs`, {
+      method: 'POST',
+      headers: this.getHeaders(),
+      body: JSON.stringify(data),
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.error || 'Failed to create job');
+    }
+
+    const result = await response.json();
+    return result.job;
+  }
+
+  async getAllJobs(filters?: {
+    status?: string;
+    clientId?: number;
+    freelancerId?: number;
+  }): Promise<{ jobs: Job[] }> {
+    const params = new URLSearchParams();
+    if (filters?.status) params.append('status', filters.status);
+    if (filters?.clientId) params.append('clientId', filters.clientId.toString());
+    if (filters?.freelancerId) params.append('freelancerId', filters.freelancerId.toString());
+
+    const url = `${API_URL}/api/jobs${params.toString() ? `?${params.toString()}` : ''}`;
+
+    const response = await fetch(url, {
+      headers: this.getHeaders(),
+    });
+
+    if (!response.ok) {
+      throw new Error('Failed to fetch jobs');
+    }
+
+    return response.json();
+  }
+
+  async getJobById(id: number): Promise<{ job: Job }> {
+    const response = await fetch(`${API_URL}/api/jobs/${id}`, {
+      headers: this.getHeaders(),
+    });
+
+    if (!response.ok) {
+      throw new Error('Failed to fetch job');
+    }
+
+    return response.json();
+  }
+
+  async getMyJobs(role?: 'client' | 'freelancer'): Promise<{ jobs: Job[] }> {
+    const url = `${API_URL}/api/jobs/my-jobs${role ? `?role=${role}` : ''}`;
+
+    const response = await fetch(url, {
+      headers: this.getHeaders(),
+    });
+
+    if (!response.ok) {
+      throw new Error('Failed to fetch my jobs');
+    }
+
+    return response.json();
+  }
+
+  async applyToJob(jobId: number, proposal: string): Promise<{ message: string; jobId: string }> {
+    const response = await fetch(`${API_URL}/api/jobs/${jobId}/apply`, {
+      method: 'POST',
+      headers: this.getHeaders(),
+      body: JSON.stringify({ proposal }),
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.error || 'Failed to apply to job');
+    }
+
+    return response.json();
+  }
+
+  async assignJob(jobId: number, freelancerId: number): Promise<{ job: Job }> {
+    const response = await fetch(`${API_URL}/api/jobs/${jobId}/assign`, {
+      method: 'PUT',
+      headers: this.getHeaders(),
+      body: JSON.stringify({ freelancerId }),
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.error || 'Failed to assign job');
+    }
+
+    return response.json();
+  }
+
+  async submitWork(jobId: number, submissionUrl: string, notes?: string): Promise<{ job: Job }> {
+    const response = await fetch(`${API_URL}/api/jobs/${jobId}/submit`, {
+      method: 'POST',
+      headers: this.getHeaders(),
+      body: JSON.stringify({ submissionUrl, notes }),
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.error || 'Failed to submit work');
+    }
+
+    return response.json();
+  }
+
+  async reviewSubmission(
+    jobId: number,
+    action: 'approve' | 'reject' | 'request_revision',
+    rejectionReason?: string,
+    rating?: number
+  ): Promise<{ job: Job }> {
+    const response = await fetch(`${API_URL}/api/jobs/${jobId}/review`, {
+      method: 'PUT',
+      headers: this.getHeaders(),
+      body: JSON.stringify({ action, rejectionReason, rating }),
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.error || 'Failed to review submission');
+    }
+
+    return response.json();
+  }
+
+  async cancelJob(jobId: number): Promise<{ message: string }> {
+    const response = await fetch(`${API_URL}/api/jobs/${jobId}/cancel`, {
+      method: 'DELETE',
+      headers: this.getHeaders(),
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.error || 'Failed to cancel job');
+    }
+
+    return response.json();
   }
 }
 
