@@ -213,20 +213,19 @@ export default function CreateJobPage() {
           {/* Deadline */}
           <div>
             <label className="block text-sm font-semibold text-gray-300 mb-2 flex items-center gap-2">
-              <Calendar className="w-4 h-4" />
+              <Calendar className="w-6 h-6" />
               Deadline *
             </label>
             <input
               type="datetime-local"
-              value={
-                formData.deadline
-                  ? new Date(formData.deadline).toISOString().slice(0, 16)
-                  : ''
-              }
+              value={formData.deadline}
               onChange={(e) => setFormData({ ...formData, deadline: e.target.value })}
-              min={new Date().toISOString().slice(0, 16)} // prevents past date selection
-              className={`w-full bg-gray-800/60 backdrop-blur-xl border ${errors.deadline ? 'border-red-500' : 'border-gray-700'
-                } text-white px-4 py-3 rounded-lg focus:outline-none focus:border-gray-600`}
+              min={new Date().toISOString().slice(0, 16)}
+              className={`w-full bg-gray-800 border ${errors.deadline ? 'border-red-500' : 'border-gray-700'
+                } text-white px-4 py-3 rounded-lg focus:outline-none focus:border-gray-400 
+    [&::-webkit-calendar-picker-indicator]:opacity-100 
+    [&::-webkit-calendar-picker-indicator]:invert 
+    [&::-webkit-calendar-picker-indicator]:cursor-pointer`}
             />
             {errors.deadline && <p className="text-red-400 text-sm mt-1">{errors.deadline}</p>}
           </div>

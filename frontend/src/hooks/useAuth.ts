@@ -76,6 +76,7 @@ export function useAuth() {
     try {
       setLoading(true);
       const updatedUser = await apiService.updateProfile(data);
+      console.log('✅ Updated user from API:', updatedUser);
       setUser(updatedUser);
       return updatedUser;
     } catch (err) {

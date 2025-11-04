@@ -1,4 +1,4 @@
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001';
 
 export interface User {
   id: number;
@@ -52,10 +52,7 @@ class ApiService {
 
   constructor() {
     if (typeof window !== 'undefined') {
-      // Check both key names in case the login flow uses a different one
-      this.token = localStorage.getItem('authToken') || localStorage.getItem('token');
-
-      console.log('Loaded token from storage:', this.token);
+      this.token = localStorage.getItem('authToken');
     }
   }
 
@@ -74,12 +71,19 @@ class ApiService {
   }
 
   private getHeaders() {
+    // Always get fresh token from localStorage
+    const freshToken = typeof window !== 'undefined' 
+      ? localStorage.getItem('authToken') 
+      : this.token;
+
     const headers: HeadersInit = {
       'Content-Type': 'application/json',
     };
 
-    if (this.token) {
-      headers['Authorization'] = `Bearer ${this.token}`;
+    if (freshToken) {
+      headers['Authorization'] = `Bearer ${freshToken}`;
+    } else {
+      console.warn('⚠️ No auth token found in getHeaders');
     }
 
     return headers;
@@ -138,6 +142,12 @@ class ApiService {
     bio?: string;
     email?: string;
   }): Promise<User> {
+    const token = typeof window !== 'undefined' ? localStorage.getItem('authToken') : null;
+    
+    if (!token) {
+      throw new Error('Not authenticated. Please sign in again.');
+    }
+
     const response = await fetch(`${API_URL}/api/auth/profile`, {
       method: 'PUT',
       headers: this.getHeaders(),
@@ -145,6 +155,12 @@ class ApiService {
     });
 
     if (!response.ok) {
+      if (response.status === 401) {
+        // Token expired or invalid - clear it
+        this.clearToken();
+        throw new Error('Session expired. Please sign in again.');
+      }
+      
       const error = await response.json();
       throw new Error(error.error || 'Failed to update profile');
     }
@@ -186,7 +202,7 @@ class ApiService {
     if (filters?.freelancerId) params.append('freelancerId', filters.freelancerId.toString());
 
     const url = `${API_URL}/api/jobs${params.toString() ? `?${params.toString()}` : ''}`;
-
+    
     const response = await fetch(url, {
       headers: this.getHeaders(),
     });
@@ -212,7 +228,7 @@ class ApiService {
 
   async getMyJobs(role?: 'client' | 'freelancer'): Promise<{ jobs: Job[] }> {
     const url = `${API_URL}/api/jobs/my-jobs${role ? `?role=${role}` : ''}`;
-
+    
     const response = await fetch(url, {
       headers: this.getHeaders(),
     });

@@ -34,20 +34,37 @@ export default function Dashboard() {
 
   // Authenticate user when wallet connects
   useEffect(() => {
+    let isMounted = true;
+
     const doAuth = async () => {
+      // Only authenticate if: wallet connected, have public key, not already authenticated, and not currently loading
       if (connected && publicKey && !isAuthenticated && !authLoading) {
         try {
-          console.log('🔐 Starting authentication...');
+          console.log('🔐 Starting authentication for:', publicKey.toBase58());
           await authenticate();
-          console.log('✅ Authentication successful!');
+          if (isMounted) {
+            console.log('✅ Authentication successful!');
+            setAuthError(null);
+          }
         } catch (error) {
-          console.error('❌ Authentication failed:', error);
-          setAuthError(error instanceof Error ? error.message : 'Authentication failed');
+          if (isMounted) {
+            console.error('❌ Authentication failed:', error);
+            setAuthError(error instanceof Error ? error.message : 'Authentication failed');
+          }
         }
       }
     };
 
-    doAuth();
+    // Small delay to ensure wallet is fully connected
+    const timer = setTimeout(() => {
+      doAuth();
+    }, 500);
+
+    return () => {
+      isMounted = false;
+      clearTimeout(timer);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [connected, publicKey, isAuthenticated, authLoading]);
 
   // Load user data into form
@@ -98,36 +115,89 @@ export default function Dashboard() {
       alert('Profile saved successfully! ✅');
     } catch (error) {
       console.error('Save failed:', error);
-      alert('Failed to save profile: ' + (error instanceof Error ? error.message : 'Unknown error'));
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+
+      // If session expired, offer to re-authenticate
+      if (errorMessage.includes('Session expired') || errorMessage.includes('sign in again')) {
+        const shouldReauth = confirm('Your session has expired. Would you like to sign in again?');
+        if (shouldReauth) {
+          try {
+            await authenticate();
+            // Try saving again after re-authentication
+            await updateProfile({
+              username: username || undefined,
+              bio: bio || undefined,
+              email: email || undefined,
+            });
+            setIsEditing(false);
+            alert('Profile saved successfully! ✅');
+          } catch (reAuthError) {
+            alert('Failed to re-authenticate: ' + (reAuthError instanceof Error ? reAuthError.message : 'Unknown error'));
+          }
+        }
+      } else {
+        alert('Failed to save profile: ' + errorMessage);
+      }
     } finally {
       setSaving(false);
     }
   };
-
   if (!connected) {
     return null;
   }
 
   // Show loading while authenticating
-  if (authLoading || !user) {
+  // Show loading while authenticating
+  if (!user) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-gray-950 via-gray-900 to-black flex items-center justify-center">
-      <div className="text-center">
-        <Loader2 className="w-12 h-12 text-gray-400 animate-spin mx-auto mb-4" />
-        <p className="text-gray-400 mb-4">Authenticating with backend...</p>
-        {authError && (
-          <>
-            <p className="text-red-400 mb-4 text-sm">{authError}</p>
-            <button
-              onClick={authenticate}
-              className="bg-blue-600 hover:bg-blue-700 text-white font-semibold px-6 py-3 rounded-lg transition-all"
-            >
-              🔐 Sign In with Wallet
-            </button>
-          </>
-        )}
+        <div className="text-center max-w-md">
+          {authLoading ? (
+            <>
+              <Loader2 className="w-12 h-12 text-gray-400 animate-spin mx-auto mb-4" />
+              <p className="text-gray-400">Authenticating with backend...</p>
+            </>
+          ) : (
+            <>
+              <div className="w-16 h-16 bg-gradient-to-br from-gray-700 to-gray-800 rounded-full flex items-center justify-center mx-auto mb-4">
+                <Zap className="w-8 h-8 text-gray-400" />
+              </div>
+              <h3 className="text-xl font-bold text-gray-200 mb-2">Sign In Required</h3>
+              <p className="text-gray-400 mb-6">Please sign in with your wallet to continue</p>
+              <button
+                onClick={async () => {
+                  try {
+                    await authenticate();
+                  } catch (err) {
+                    console.error('Manual auth failed:', err);
+                  }
+                }}
+                className="bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-500 hover:to-blue-600 text-white font-bold px-8 py-4 rounded-lg transition-all transform hover:scale-105"
+              >
+                🔐 Sign In with Wallet
+              </button>
+            </>
+          )}
+          {authError && (
+            <div className="mt-6 bg-red-900/20 border border-red-700/50 rounded-lg p-4">
+              <p className="text-red-400 text-sm">{authError}</p>
+              <button
+                onClick={async () => {
+                  setAuthError(null);
+                  try {
+                    await authenticate();
+                  } catch (err) {
+                    console.error('Retry failed:', err);
+                  }
+                }}
+                className="mt-3 text-red-300 hover:text-red-200 text-sm underline"
+              >
+                Try Again
+              </button>
+            </div>
+          )}
+        </div>
       </div>
-    </div>
     );
   }
 

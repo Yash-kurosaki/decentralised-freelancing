@@ -65,6 +65,8 @@ export const authenticate = async (
     };
 
     req.user = decoded;
+    console.log("🧩 Decoded token:", decoded);
+
     next();
   } catch (error) {
     if (error instanceof jwt.JsonWebTokenError) {
